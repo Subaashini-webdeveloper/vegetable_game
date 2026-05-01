@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>காய்கறி விளையாட்டு - பக்கங்கள்</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f8ff; padding: 20px; color: #2c3e50; overflow-x: hidden; }
+        h1 { margin-bottom: 5px; }
+        .instruction { color: #555; margin-bottom: 10px; }
+        
+        /* Game Layout */
+        .game-container { display: flex; justify-content: center; gap: 30px; max-width: 1000px; margin: 0 auto; min-height: 550px; }
+        
+        .column { 
+            flex: 1; padding: 20px; background: rgba(255,255,255,0.7); 
+            border-radius: 20px; border: 2px solid #d1d9e0; min-height: 500px;
+        }
+
+        .source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+
+        .card { 
+            background: white; border-radius: 15px; padding: 10px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); cursor: grab; 
+            transition: 0.2s; border: 2px solid transparent; 
+        }
+        .card:active { cursor: grabbing; transform: scale(1.05); }
+        
+        .color-box { width: 100%; height: 80px; border-radius: 12px; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+        .img-box img { max-width: 75%; max-height: 75%; object-fit: contain; pointer-events: none; }
+
+        .drop-zone { 
+            background: #fff; border: 3px dashed #3498db; 
+            border-radius: 15px; padding: 10px; margin-bottom: 10px;
+            height: 70px; display: flex; align-items: center; 
+            justify-content: flex-start; transition: 0.3s;
+        }
+        
+        .hint-img { width: 45px; height: 45px; margin-right: 12px; opacity: 0.8; filter: grayscale(100%); pointer-events: none; }
+
+        .drop-zone.hover { background: #e1f5fe; border-color: #2ecc71; transform: scale(1.02); }
+        .drop-zone.correct { background: #2ecc71 !important; color: white; border-style: solid; border-color: #27ae60; }
+        .drop-zone.correct .hint-img { opacity: 1; filter: grayscale(0%); }
+
+        .text-container { display: flex; flex-direction: column; text-align: left; }
+        .tamil-text { font-size: 1.1rem; font-weight: bold; }
+        .english-text { font-size: 0.8rem; opacity: 0.8; }
+        
+        .hidden { visibility: hidden; opacity: 0; pointer-events: none; }
+
+        /* Pagination Controls */
+        .controls { margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 20px; }
+        button { 
+            padding: 10px 25px; font-size: 1rem; cursor: pointer; 
+            background-color: #3498db; color: white; border: none; 
+            border-radius: 50px; font-weight: bold; transition: 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #pageInfo { font-weight: bold; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <h1>காய்கறி விளையாட்டு</h1>
+    <p class="instruction">படத்தை இழுத்துச் சரியான பெயருடன் பொருத்தவும்.</p>
+
+    <div class="game-container">
+        <div class="column">
+            <h3>காய்கறிகள்</h3>
+            <div class="source-grid" id="sourceColumn"></div>
+        </div>
+
+        <div class="column" id="targetColumn">
+            <h3>பெயர்கள்</h3>
+            <div id="targetList"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn" onclick="changePage(-1)">முந்தைய (Prev)</button>
+        <span id="pageInfo">பக்கம் 1</span>
+        <button id="nextBtn" onclick="changePage(1)">அடுத்தது (Next)</button>
+    </div>
+
+    <script>
+        const Vegetables = [
+            { id: "v1", tamil: "உருளைக்கிழங்கு", english: "Potato", hex: "#C4A484", sound: "potato.mp3", img: "potato.png"},
+            { id: "v2", tamil: "தக்காளி", english: "Tomato", hex: "#FF4D4D", sound: "tomato.mp3", img: "tomato.png"},
+            { id: "v3", tamil: "வெங்காயம்", english: "Onion", hex: "#D3A6BB", sound: "onion.mp3", img: "onion.png"},
+            { id: "v4", tamil: "வாழைக்காய்", english: "Unripe Banana", hex: "#A8E063", sound: "vazhaikai.mp3", img: "vazhakai.png"},
+            { id: "v5", tamil: "பூண்டு", english: "Garlic", hex: "#FCF7EE", sound: "garlic.mp3", img: "garlic.png"},
+            { id: "v6", tamil: "கத்தரிக்காய்", english: "Brinjal", hex: "#82037E", sound: "brinjal.mp3", img: "brinjal.png"},
+            { id: "v7", tamil: "பாகற்காய்", english: "Bitter gourd", hex: "#2ecc71", sound: "bitterguard.mp3", img: "bitterguard.png"},
+            { id: "v8", tamil: "முருங்கைக்காய்", english: "Drumstick", hex: "#27ae60", sound: "drumstick.mp3", img: "drumstick.png"},
+            { id: "v9", tamil: "காளான்", english: "Mushroom", hex: "#EAE7D9", sound: "mushroom.mp3", img: "mushroom.png"},
+            { id: "v10", tamil: "பட்டாணி", english: "Peas", hex: "#43C6AC", sound: "peas.mp3", img: "peas.png"},
+            { id: "v11", tamil: "பூசணி", english: "Pumpkin", hex: "#F39C12", sound: "pumpkin.mp3", img: "pumpkin.png"},
+            { id: "v12", tamil: "கீரைகள்", english: "Greens", hex: "#2ecc71", sound: "greens.mp3", img:"greens.png"},
+            { id: "v13", tamil: "கொத்தமல்லி", english: "Cilantro", hex: "#56ab2f", sound: "cilantro.mp3", img:"cilantro.png"},
+            { id: "v14", tamil: "கறிவேப்பிலை", english: "Curry leaves", hex: "#1e5d1e", sound: "curry.mp3", img: "curry.png"},
+            { id: "v15", tamil: "முட்டைக்கோஸ்", english: "Cabbage", hex: "#E7FFE7", sound: "cabbage.mp3", img: "cabbage.png"},
+            { id: "v16", tamil: "வெண்டைக்காய்", english: "Lady's Finger", hex: "#A8E063", sound: "ladiesfinger.mp3", img: "ladiesfinger.png"},
+            { id: "v17", tamil: "சுரைக்காய்", english: "Bottle gourd", hex: "#D4FC79", sound: "bottleguard.mp3", img:"bottleguard.png"},
+            { id: "v18", tamil: "பீர்க்கங்காய்", english: "Ridge gourd", hex: "#2ecc71", sound: "ridgeguard.mp3", img:"ridgeguard.png"},
+            { id: "v19", tamil: "கருணைக் கிழங்கு", english: "Elephant yam", hex: "#8D6E63", sound: "yam.mp3", img: "yam.png"},
+            { id: "v20", tamil: "வாழைத்தண்டு", english: "Banana stem", hex: "#F9F9F9", sound: "bananastem.mp3", img:"bananastem.png"},
+            { id: "v21", tamil: "வாழைப்பூ", english: "Banana flower", hex: "#641E16", sound: "bananaflower.mp3", img: "bananaflower.png"},
+            { id: "v22", tamil: "மிளகாய்", english: "Chilli", hex: "#FF0000", sound: "chilli.mp3", img:"chilli.png"},
+            { id: "v23", tamil: "குடைமிளகாய்", english: "Capsicum", hex: "#27ae60", sound: "capcicum.mp3", img: "capcicum.png"}
+        ];
+
+        let currentPage = 0;
+        const itemsPerPage = 5;
+        const totalPages = Math.ceil(Vegetables.length / itemsPerPage);
+
+        function renderPage() {
+            const sourceColumn = document.getElementById('sourceColumn');
+            const targetList = document.getElementById('targetList');
+            sourceColumn.innerHTML = "";
+            targetList.innerHTML = "";
+
+            const start = currentPage * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageItems = Vegetables.slice(start, end);
+
+            // Shuffled version for the draggable images
+            const shuffledPageItems = [...pageItems].sort(() => Math.random() - 0.5);
+
+            shuffledPageItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.draggable = true;
+                card.id = item.id;
+                card.ondragstart = (e) => e.dataTransfer.setData("text", e.target.id);
+                card.innerHTML = `
+                    <div class="color-box" style="background-color: ${item.hex}">
+                        <div class="img-box"><img src="${item.img}"></div>
+                    </div>
+                `;
+                sourceColumn.appendChild(card);
+            });
+
+            pageItems.forEach(item => {
+                const zone = document.createElement('div');
+                zone.className = 'drop-zone';
+                zone.setAttribute('data-match', item.id);
+                zone.innerHTML = `
+                    <img src="${item.img}" class="hint-img">
+                    <div class="text-container">
+                        <span class="tamil-text">${item.tamil}</span>
+                        <span class="english-text">${item.english}</span>
+                    </div>
+                `;
+
+                zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('hover'); };
+                zone.ondragleave = () => zone.classList.remove('hover');
+                zone.ondrop = (e) => handleDrop(e, zone, item);
+
+                targetList.appendChild(zone);
+            });
+
+            document.getElementById('pageInfo').innerText = `பக்கம் ${currentPage + 1} / ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 0;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages - 1;
+        }
+
+        function handleDrop(e, zone, item) {
+            e.preventDefault();
+            zone.classList.remove('hover');
+            const draggedId = e.dataTransfer.getData("text");
+
+            if (draggedId === zone.getAttribute('data-match')) {
+                zone.classList.add('correct');
+                zone.querySelector('.text-container').innerHTML = `<b>🎉 சபாஷ்! ${item.tamil}</b>`;
+                document.getElementById(draggedId).classList.add('hidden');
+                playAudio(item.sound);
+            } else {
+                alert("தவறு! சரியான படத்தைத் தேர்ந்தெடுக்கவும்.");
+            }
+        }
+
+        function changePage(step) {
+            currentPage += step;
+            renderPage();
+        }
+
+        function playAudio(file) {
+            const audio = new Audio(file);
+            audio.play().catch(err => console.log("Audio play failed"));
+        }
+
+        // Initialize the first page
+        renderPage();
+    </script>
+</body>
+</html>
